@@ -16,7 +16,8 @@ import org.lwjgl.system.MemoryUtil;
 
 /**
  * V1 in the inventory's little player window: ULTRAKILL films its real V1 body (the platformer V1) into
- * %TEMP%/ultracraft_doll.bin while the inventory asks for it, turned toward the cursor like Minecraft's paper doll
+ * %TEMP%/ultracraft_doll.bin (the temp ULTRAKILL writes to: inside its Proton prefix on Linux, see UkPaths) while the
+ * inventory asks for it, turned toward the cursor like Minecraft's paper doll
  * (the head further than the body), at exactly the box's size in screen pixels so it's shown 1:1.
  */
 public final class UkDoll {
@@ -34,7 +35,7 @@ public final class UkDoll {
 
 	private static boolean open() {
 		if (map != null) return true;
-		Path p = Path.of(System.getProperty("java.io.tmpdir"), "ultracraft_doll" + UltracraftConfig.instanceSuffix() + ".bin");
+		Path p = UkPaths.shared().resolve("ultracraft_doll" + UltracraftConfig.instanceSuffix() + ".bin");
 		try (RandomAccessFile f = new RandomAccessFile(p.toFile(), "r"); FileChannel ch = f.getChannel()) {
 			long need = HEADER + (long) MAX_W * MAX_H * 4;
 			if (ch.size() < need) return false;

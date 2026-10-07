@@ -23,7 +23,8 @@ import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 
 /**
- * ULTRAKILL's frames from the file UltraBridge maps (%TEMP%/ultracraft_frame2.bin). Each frame is the final colour
+ * ULTRAKILL's frames from the file UltraBridge maps (%TEMP%/ultracraft_frame2.bin, which under Proton is the temp
+ * inside the game's prefix: UkPaths finds it). Each frame is the final colour
  * image plus V1's mask (alpha of its 3D render target, one byte per pixel), read back by ULTRAKILL's GPU straight into
  * a slot of the file. Both are uploaded straight from the mapped file into two textures and combined on the GPU by
  * the v1_composite shader while drawing.
@@ -65,7 +66,7 @@ public final class UkFrame {
 
 	private static boolean open() {
 		if (map != null) return true;
-		Path p = Path.of(System.getProperty("java.io.tmpdir"), "ultracraft_frame2" + UltracraftConfig.instanceSuffix() + ".bin");
+		Path p = UkPaths.shared().resolve("ultracraft_frame2" + UltracraftConfig.instanceSuffix() + ".bin");
 		try (RandomAccessFile f = new RandomAccessFile(p.toFile(), "r"); FileChannel ch = f.getChannel()) {
 			long need = HEADER + SLOTS * SLOT_BYTES;
 			if (ch.size() < need) return false;

@@ -3,6 +3,11 @@ package dev.ultracraft;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -24,6 +29,8 @@ import org.slf4j.LoggerFactory;
  */
 final class UkLauncher {
 	private static final Logger LOG = LoggerFactory.getLogger("ultracraft");
+	private static final String APP_ID = "1229490";
+	private static final String FLATPAK_ID = "com.valvesoftware.Steam";
 	private static boolean started;
 	private static boolean askPending;
 
@@ -66,8 +73,17 @@ final class UkLauncher {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> close());
 	}
 
+	/** ULTRAKILL's process, whichever way the running game names it (on Linux it is its .exe under Proton too). */
 	static Optional<ProcessHandle> running() {
-		return ProcessHandle.allProcesses().filter(p -> p.info().command().map(c -> c.toLowerCase().endsWith("\\ultrakill.exe")).orElse(false)).findFirst();
+		return ProcessHandle.allProcesses().filter(UkLauncher::isUltrakillProcess).findFirst();
+	}
+
+	/** True when the process looks like ULTRAKILL: its command or command line mentions ultrakill.exe. */
+	static boolean isUltrakillProcess(ProcessHandle p) {
+		String c = p.info().command().orElse("").toLowerCase(Locale.ROOT).replace('\\', '/');
+		if (c.equals("ultrakill.exe") || c.endsWith("/ultrakill.exe")) return true;
+		String cmdl = p.info().commandLine().orElse("").toLowerCase(Locale.ROOT).replace('\\', '/');
+		return cmdl.contains("ultrakill.exe");
 	}
 
 	private static void launch() {
@@ -76,15 +92,17 @@ final class UkLauncher {
 			LOG.info("ULTRAKILL is already running");
 			return;
 		}
-		String steam = steamExe();
+		List<String> steam = steamCommand();
 		if (steam == null) {
 			LOG.warn("Steam not found: start ULTRAKILL yourself (with the UltraBridge plugin)");
 			return;
 		}
 		try {
-			new ProcessBuilder(steam, "-applaunch", "1229490", "-ultracraft", "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720").start();
+			List<String> cmd = new ArrayList<>(steam);
+			cmd.addAll(List.of("-applaunch", APP_ID, "-ultracraft", "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"));
+			new ProcessBuilder(cmd).start();
 			started = true;
-			LOG.info("starting ULTRAKILL through {}", steam);
+			LOG.info("starting ULTRAKILL through {}", String.join(" ", cmd));
 		} catch (Exception e) {
 			LOG.warn("couldn't start ULTRAKILL: {}", e.toString());
 		}
@@ -102,6 +120,39 @@ final class UkLauncher {
 				p.destroy();
 			}
 		});
+	}
+
+	/**
+	 * How to ask Steam to start ULTRAKILL: its own steam.exe on Windows; on Linux the Steam that has the game
+	 * (the Flatpak one when the game lives in its folders, otherwise steam itself).
+	 */
+	private static List<String> steamCommand() {
+		if (UkPaths.windows()) {
+			String exe = steamExe();
+			return exe != null ? List.of(exe) : null;
+		}
+		Path home = Path.of(System.getProperty("user.home", "."));
+		Path flatpak = home.resolve(".var/app/" + FLATPAK_ID);
+		boolean flatpakSteam = Files.isDirectory(flatpak) && which("flatpak") != null;
+		Path game = UkInstaller.game();
+		if (flatpakSteam && game != null && game.startsWith(flatpak)) return List.of("flatpak", "run", FLATPAK_ID);
+		for (Path p : List.of(Path.of("/usr/bin/steam"), Path.of("/usr/games/steam"), home.resolve(".local/share/Steam/steam.sh"), home.resolve(".steam/steam/steam.sh"))) {
+			if (Files.isRegularFile(p)) return List.of(p.toString());
+		}
+		String steam = which("steam");
+		if (steam != null) return List.of(steam);
+		if (flatpakSteam) return List.of("flatpak", "run", FLATPAK_ID);
+		return null;
+	}
+
+	/** A program found in PATH, or null. */
+	private static String which(String name) {
+		for (String dir : System.getenv().getOrDefault("PATH", "").split(":")) {
+			if (dir.isBlank()) continue;
+			Path p = Path.of(dir, name);
+			if (Files.isRegularFile(p) && Files.isExecutable(p)) return p.toString();
+		}
+		return null;
 	}
 
 	/** Steam's own record of where it is (HKCU\Software\Valve\Steam SteamExe), or the usual place. */

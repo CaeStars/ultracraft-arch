@@ -19,7 +19,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * ULTRAKILL's shop terminal for Minecraft to draw: ULTRAKILL writes it out once it has loaded its shop (the mesh in
  * blocks, standing on the middle of its 2 x 1 floor with its screen to the north; its texture and the glow of its
- * screen and lights) to %TEMP%, and a copy is kept in the config folder. Nothing of ULTRAKILL's ships with the mod:
+ * screen and lights) to its temp (the prefix's under Proton, see UkPaths), and a copy is kept in the config folder.
+ * Nothing of ULTRAKILL's ships with the mod:
  * until ULTRAKILL has run once, the shop is a plain metal cabinet of the same size.
  */
 final class ShopMesh {
@@ -62,9 +63,9 @@ final class ShopMesh {
 	}
 
 	private static void refresh() throws Exception {
-		Path tmp = Path.of(System.getProperty("java.io.tmpdir")), cfg = FabricLoader.getInstance().getConfigDir();
+		Path tmp = UkPaths.shared(), cfg = FabricLoader.getInstance().getConfigDir();
 		Path tmpBin = tmp.resolve(BIN);
-		// ULTRAKILL writes them to %TEMP% each time it loads its shop; the copy here outlives a cleaned-up %TEMP%
+		// ULTRAKILL writes them to its temp each time it loads its shop; the copy here outlives a cleaned-up temp
 		if (Files.exists(tmpBin) && Files.exists(tmp.resolve(PNG))) {
 			long stamp = Files.getLastModifiedTime(tmpBin).toMillis();
 			if (stamp != tmpStamp) {

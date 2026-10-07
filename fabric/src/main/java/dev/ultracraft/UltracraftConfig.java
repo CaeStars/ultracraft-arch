@@ -73,6 +73,11 @@ public final class UltracraftConfig {
 	public static String ultrakillDir = "";
 	/** The player agreed to Ultracraft setting ULTRAKILL up (BepInEx, the UltraBridge plugin); asked once, on the title screen. */
 	public static boolean setupUltrakill = false;
+	/**
+	 * The folder the two games share their files in (ULTRAKILL's frames and the rest), when it isn't found by itself:
+	 * on Linux ULTRAKILL runs under Proton and its temp is inside its prefix (UkPaths works that out).
+	 */
+	public static String sharedDir = "";
 	/** The other players' names and health over ULTRAKILL's view (Teammates). */
 	public static boolean teammateMarkers = true;
 	/** Bosses (and arenas) bring their own ULTRAKILL song where they have one. */
@@ -105,7 +110,7 @@ public final class UltracraftConfig {
 	private static final String[] KEYS = {"v1Height", "autoV1", "ukSpawns", "mcMobs", "sharpShop", "grindBest", "bosses", "bossMinutes", "bossDifficulty", "traitChance", "bossWarnSeconds",
 		"allGear", "playerBlockDamage", "enemyBlockDamage", "impactFrames", "launchUltrakill", "opShop", "ukFpsCap", "steveEnemies", "fightMusic", "bossThemes",
 		"calmMusic", "hushMcMusic", "styleRewards", "arenas", "grindArenas", "lockStep", "lowLatency",
-		"effects", "stainCap", "extraGore", "terrainRange", "ultrakillDir", "setupUltrakill", "teammateMarkers"};
+		"effects", "stainCap", "extraGore", "terrainRange", "ultrakillDir", "setupUltrakill", "teammateMarkers", "sharedDir"};
 
 	private static final String COMMENT = "Ultracraft (most of this is on the Ultracraft settings screen): v1Height = ULTRAKILL render height (0 = full window, lower = faster);"
 		+ " autoV1 = become V1 automatically; ukSpawns = ULTRAKILL's enemies spawn in the dark; mcMobs = Minecraft's monsters spawn;"
@@ -115,7 +120,8 @@ public final class UltracraftConfig {
 		+ " launchUltrakill = start ULTRAKILL with Minecraft; opShop = upgrades go to 1500%; uk.* = ULTRAKILL settings used while playing Ultracraft;"
 		+ " fightMusic = off, random or a song of ULTRAKILL's soundtrack; cheat.* = cheats on; arenas = ULTRAKILL arenas generate in new chunks; grindArenas = the Cyber Grind runs through its own 50 arenas; lockStep = Minecraft waits for ULTRAKILL's frames;"
 		+ " effects = 2 high, 1 medium, 0 low; stainCap = blood stains kept on blocks (0 none); extraGore = Ultracraft's extra death blood; terrainRange = blocks of terrain sent to ULTRAKILL (64-128);"
-		+ " ultrakillDir = ULTRAKILL's folder, only if Ultracraft can't find it through Steam (it sets up BepInEx and the UltraBridge plugin there); setupUltrakill = you let Ultracraft set ULTRAKILL up (and keep its plugin up to date); teammateMarkers = the other players' names and health over ULTRAKILL's view";
+		+ " ultrakillDir = ULTRAKILL's folder, only if Ultracraft can't find it through Steam (it sets up BepInEx and the UltraBridge plugin there); setupUltrakill = you let Ultracraft set ULTRAKILL up (and keep its plugin up to date); teammateMarkers = the other players' names and health over ULTRAKILL's view;"
+		+ " sharedDir = the folder the two games share files in (ULTRAKILL's temp), only if it can't be found by itself (under Proton it is in the game's prefix: see UkPaths)";
 
 	private UltracraftConfig() {}
 
@@ -175,6 +181,11 @@ public final class UltracraftConfig {
 			if (ukFps != 0) ukFps = Math.max(30, Math.min(240, ukFps));
 			fightMusic = p.getProperty("fightMusic", fightMusic).trim();
 			ultrakillDir = p.getProperty("ultrakillDir", ultrakillDir).trim();
+			// Normalize: remove trailing slashes, resolve relative paths against config dir
+			if (!ultrakillDir.isBlank() && !Path.of(ultrakillDir).isAbsolute()) {
+				ultrakillDir = file().getParent().resolve(ultrakillDir).normalize().toString();
+			}
+			sharedDir = p.getProperty("sharedDir", sharedDir).trim();
 			setupUltrakill = bool(p, "setupUltrakill", setupUltrakill);
 			teammateMarkers = bool(p, "teammateMarkers", teammateMarkers);
 			bossThemes = bool(p, "bossThemes", bossThemes);
@@ -229,6 +240,7 @@ public final class UltracraftConfig {
 		p.setProperty("ukFpsCap", Integer.toString(ukFps));
 		p.setProperty("fightMusic", fightMusic);
 		p.setProperty("ultrakillDir", ultrakillDir);
+		p.setProperty("sharedDir", sharedDir);
 		p.setProperty("setupUltrakill", Boolean.toString(setupUltrakill));
 		p.setProperty("teammateMarkers", Boolean.toString(teammateMarkers));
 		p.setProperty("bossThemes", Boolean.toString(bossThemes));

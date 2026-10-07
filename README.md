@@ -4,7 +4,8 @@ The real ULTRAKILL, played inside the real Minecraft 1.21.11. ULTRAKILL runs alo
 its window; Minecraft's blocks and mobs become ULTRAKILL's world and enemies. Bosses with modifiers, P, the shop,
 upgrades, arenas themed after its layers, its music in fights, the Cyber Grind, cheats, and LAN co-op.
 
-You need to own **ULTRAKILL** (Steam) and **Minecraft Java Edition**. Windows only.
+You need to own **ULTRAKILL** (Steam) and **Minecraft Java Edition**. On Windows that is all; on Linux ULTRAKILL runs
+through Proton and the Arch scripts in [arch/](arch/README.md) set both halves up.
 
 ## Install
 
@@ -21,12 +22,19 @@ version of the mod. A toast on the title screen says what it did. Have Steam run
 Play that instance. ULTRAKILL starts by itself (and closes with Minecraft); open a world and you become V1 (F8 toggles
 back to Steve).
 
+**On Arch Linux (ULTRAKILL through Proton):** `arch/install-ultracraft.sh` finds Steam and ULTRAKILL, gives it
+BepInEx and the plugin, builds both halves and puts the mod where Minecraft loads it (the Loom dev client, or a
+PrismLauncher instance with `--prism`); `arch/play-ultracraft.sh` then starts and stops the two games together. What
+the Linux side has to do differently (Proton's `%TEMP%`, Steam's folders, Wine's winhttp override) is in
+[arch/README.md](arch/README.md).
+
 **Or by hand:** install **Fabric Loader** for Minecraft **1.21.11** (https://fabricmc.net/use/installer/), and put
 **Fabric API** for 1.21.11 (https://modrinth.com/mod/fabric-api) and `ultracraft-x.y.z.jar` (from `Ultracraft.zip` in
 the Releases) in your `mods` folder.
 
 ULTRAKILL not found (installed somewhere unusual)? Put its folder in `config/ultracraft.properties` as
-`ultrakillDir=D:\\Games\\ULTRAKILL` (double backslashes). It already has BepInEx 6? Ultracraft needs BepInEx 5. Still
+`ultrakillDir=D:\\Games\\ULTRAKILL` (double backslashes; on Linux one path,
+`ultrakillDir=/home/you/.steam/steam/steamapps/common/ULTRAKILL`). It already has BepInEx 6? Ultracraft needs BepInEx 5. Still
 stuck: unzip BepInEx 5 (x64, https://github.com/BepInEx/BepInEx/releases) into the ULTRAKILL folder yourself, and put
 `UltraBridge.dll` from `Ultracraft.zip` in `ULTRAKILL/BepInEx/plugins/UltraBridge/`.
 
@@ -194,5 +202,7 @@ tests and this guide were written by Claude, directed, played and tested by a pe
 - Fabric mod: JDK 21, `cd fabric && ./gradlew build` → `fabric/build/1.21.11/libs/` (`-Pmc=1.20.1` for the 1.20.1 build, in progress).
 - ULTRAKILL plugin: .NET SDK, `dotnet build -c Release ultrabridge/UltraBridge.csproj -p:GameDir="<your ULTRAKILL folder>"`
   (it compiles against your own install's DLLs and copies the result into its BepInEx plugins).
+- On Arch Linux both of those, and the ULTRAKILL side around them, are what `arch/install-ultracraft.sh` runs
+  (`fabric: ./gradlew build -PukDir=<ULTRAKILL>` also puts BepInEx and the plugin inside the jar).
 
 No game files are included in this repository.

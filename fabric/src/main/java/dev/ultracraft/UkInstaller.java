@@ -48,8 +48,16 @@ final class UkInstaller {
 			} catch (Exception e) {
 				LOG.warn("looking for ULTRAKILL: {}", e.toString());
 			}
-			if (game != null) LOG.info("ULTRAKILL at {}", game);
-			else LOG.warn("ULTRAKILL not found (Steam libraries, a running ULTRAKILL, the config's ultrakillDir): its plugin isn't set up");
+			if (game != null) {
+				LOG.info("ULTRAKILL at {}", game);
+			} else {
+				LOG.warn("ULTRAKILL not found (Steam libraries, a running ULTRAKILL, the config's ultrakillDir): its plugin isn't set up");
+				if (!UltracraftConfig.ultrakillDir.isBlank()) {
+					LOG.warn("configured ultrakillDir: {}", UltracraftConfig.ultrakillDir);
+					LOG.warn("configured path exists: {}", Files.exists(Path.of(UltracraftConfig.ultrakillDir)));
+					LOG.warn("configured path has ULTRAKILL.exe: {}", Files.exists(Path.of(UltracraftConfig.ultrakillDir).resolve("ULTRAKILL.exe")));
+				}
+			}
 		}
 		return game;
 	}
@@ -102,9 +110,26 @@ final class UkInstaller {
 
 	static Path findUltrakill() {
 		List<Path> tries = new ArrayList<>();
-		if (!UltracraftConfig.ultrakillDir.isBlank()) tries.add(Path.of(UltracraftConfig.ultrakillDir));
-		// one that's running already says where it is
-		UkLauncher.running().flatMap(p -> p.info().command()).ifPresent(c -> tries.add(Path.of(c).getParent()));
+		if (!UltracraftConfig.ultrakillDir.isBlank()) {
+			Path configured = Path.of(UltracraftConfig.ultrakillDir);
+			tries.add(configured);
+			tries.add(configured.toAbsolutePath().normalize());
+		}
+		// one that's running already says where it is (its command line may be the Proton wrapper, so scan it)
+		ProcessHandle.allProcesses().filter(UkLauncher::isUltrakillProcess).forEach(p -> {
+			String c = p.info().command().orElse(null);
+			if (c != null) tries.add(Path.of(c).getParent());
+			// the .exe may be a later arg under Proton; grab it from the command line
+			String cmdl = p.info().commandLine().orElse(null);
+			if (cmdl != null) {
+				int idx = cmdl.lastIndexOf("ULTRAKILL.exe");
+				if (idx >= 0) {
+					String segment = cmdl.substring(0, idx);
+					int slash = segment.lastIndexOf('/');
+					if (slash >= 0) tries.add(Path.of(segment.substring(slash + 1)));
+				}
+			}
+		});
 		Path steam = steamDir();
 		if (steam != null) {
 			for (Path lib : libraries(steam)) {
@@ -113,13 +138,56 @@ final class UkInstaller {
 				tries.add(apps.resolve("common").resolve(dir));
 			}
 		}
-		tries.add(Path.of("C:\\Program Files (x86)\\Steam\\steamapps\\common\\ULTRAKILL"));
+		// ULTRAKILL is the Windows build either way (on Linux it runs through Proton, and its folder keeps its .exe)
+		if (UkPaths.windows()) {
+			tries.add(Path.of("C:\\Program Files (x86)\\Steam\\steamapps\\common\\ULTRAKILL"));
+		} else {
+			for (Path dir : linuxSteamDirs()) tries.add(dir.resolve("steamapps/common/ULTRAKILL"));
+		}
 		for (Path p : tries) if (p != null && Files.isRegularFile(p.resolve("ULTRAKILL.exe"))) return p;
 		return null;
 	}
 
-	/** Steam's folder (HKCU\Software\Valve\Steam SteamPath). */
+	/**
+	 * The prefix ULTRAKILL runs in when it is the Windows build under Linux (…/steamapps/compatdata/1229490/pfx),
+	 * which is where its %TEMP% is (UkPaths). Null on Windows, or when the game is run some other way.
+	 */
+	static Path protonPrefix(Path game) {
+		if (game == null || UkPaths.windows()) return null;
+		Path common = game.getParent(), apps = common != null ? common.getParent() : null;
+		if (apps == null) return null;
+		Path pfx = apps.resolve("compatdata").resolve(APP_ID).resolve("pfx");
+		return Files.isDirectory(pfx) ? pfx : null;
+	}
+
+	/** Where Steam usually is on Linux: Steam's own environment, the native install, then Flatpak. */
+	private static List<Path> linuxSteamDirs() {
+		List<Path> dirs = new ArrayList<>();
+		add(dirs, System.getenv("STEAM_COMPAT_CLIENT_INSTALL_PATH"));
+		Path home = Path.of(System.getProperty("user.home", "."));
+		add(dirs, home.resolve(".steam/steam"));
+		add(dirs, home.resolve(".steam/root"));
+		add(dirs, home.resolve(".local/share/Steam"));
+		add(dirs, home.resolve(".steam/debian-installation"));
+		add(dirs, home.resolve(".var/app/com.valvesoftware.Steam/data/Steam"));
+		return dirs;
+	}
+
+	private static void add(List<Path> dirs, String path) {
+		if (path != null && !path.isBlank()) add(dirs, Path.of(path));
+	}
+
+	private static void add(List<Path> dirs, Path dir) {
+		if (dir != null && !dirs.contains(dir)) dirs.add(dir);
+	}
+
+	/** Steam's folder: the registry's record on Windows, the usual places on Linux. */
 	private static Path steamDir() {
+		if (!UkPaths.windows()) {
+			for (Path p : linuxSteamDirs()) if (Files.isRegularFile(p.resolve("steamapps/libraryfolders.vdf"))) return p;
+			for (Path p : linuxSteamDirs()) if (Files.isDirectory(p.resolve("steamapps"))) return p;
+			return null;
+		}
 		try {
 			Process p = new ProcessBuilder("reg", "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamPath").redirectErrorStream(true).start();
 			try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {

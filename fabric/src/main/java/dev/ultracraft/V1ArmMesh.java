@@ -21,7 +21,7 @@ import net.minecraft.world.entity.HumanoidArm;
 
 /**
  * V1's real arm (ULTRAKILL's Feedbacker, as ULTRAKILL shows it in first person) for Minecraft's hands. ULTRAKILL writes
- * it to %TEMP% once it's running (ultracraft_arm.*: its meshes in the view's space, their textures, where its hand is
+ * it to its own temp once it's running (ultracraft_arm.*: its meshes in the view's space, their textures, where its hand is
  * and the view's field of view); a copy is kept in the config folder. Until then V1Arm draws a stand-in.
  *
  * <p>The Feedbacker is V1's left arm; for Minecraft's right main hand it's turned round to the right side (a turn, not a
@@ -57,7 +57,7 @@ final class V1ArmMesh {
 	}
 
 	private static void refresh() throws Exception {
-		Path tmp = Path.of(System.getProperty("java.io.tmpdir")), cfg = FabricLoader.getInstance().getConfigDir();
+		Path tmp = UkPaths.shared(), cfg = FabricLoader.getInstance().getConfigDir();
 		Path tmpBin = tmp.resolve(BIN);
 		if (Files.exists(tmpBin) && Files.exists(tmp.resolve(TXT))) {
 			long stamp = Files.getLastModifiedTime(tmpBin).toMillis();
